@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AirPredict AI Dashboard (Firebase • 7 Days)</title>
+
+  <link rel="stylesheet" href="./model.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <div class="container">
+    <div class="topbar">
+      <div class="title">
+        <h1>AirPredict AI — PM2.5 Dashboard</h1>
+        <div class="sub">แหล่งข้อมูล: Firebase Realtime Database • แสดงย้อนหลัง 7 วัน (ค่าเฉลี่ยรายวัน)</div>
+      </div>
+
+      <div class="actions">
+        <div class="pill" id="lastUpdatePill">● ยังไม่โหลดข้อมูล</div>
+
+        <div class="themeToggle" title="สลับโหมด">
+          <span class="toggleLabel" id="toggleLabel">Light</span>
+          <label class="switch">
+            <input type="checkbox" id="themeSwitch">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <button class="btn" id="refreshBtn" type="button">⟳ Refresh</button>
+      </div>
+    </div>
+<!-- AI Insight Card -->
+<div class="card">
+  <div class="card-title">🤖 AI Insight</div>
+  <div class="big" id="ai_pred_pm25">--</div>
+  <div class="muted" id="ai_pred_note">AI คาดการณ์พรุ่งนี้: -- (--) </div>
+
+  <div class="chips" style="margin-top:10px;">
+    <span class="chip">📏 RMSE: <b id="ai_rmse">--</b></span>
+    <span class="chip">✅ Confidence: <b id="ai_conf">--</b></span>
+  </div>
+</div>
+
+<!-- Health Advice Card -->
+<div class="card">
+  <div class="card-title">🏥 คำแนะนำสุขภาพตาม AQI</div>
+  <div class="muted" id="health_advice">--</div>
+</div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="label">เลือกจังหวัด</div>
+        <div style="margin-top:10px">
+          <select id="provinceSelect"></select>
+        </div>
+          <!-- 🔴 เพิ่มตรงนี้ -->
+  <div class="realtimeBox" style="margin-top:14px">
+    <div class="realtimeTitle">📡 เรียลไทม์ PM2.5</div>
+    <div class="realtimeValue">
+      <span id="rtPm25">--</span>
+      <small>µg/m³</small>
+    </div>
+    <div class="realtimeTime" id="rtTime">อัปเดต: --</div>
+  </div>
+
+        <div class="chips">
+          <span class="chip">ช่วงข้อมูล: <b>7 วันล่าสุด</b></span>
+          <span class="chip">รูปแบบ: <b>ค่าเฉลี่ยรายวัน</b></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">PM2.5 ล่าสุด (µg/m³)</div>
+        <div class="big" id="latestPm25">-</div>
+        <div class="sub" id="latestTime">-</div>
+
+        <div class="chips">
+          <span class="chip">Province: <b id="metaProvince">-</b></span>
+          <span class="chip">Level: <b id="metaLevel">-</b></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="label">AQI ล่าสุด</div>
+        <div class="big" id="latestAqi">-</div>
+        <div id="levelBadge" class="badge"><span class="dot"></span><span>-</span></div>
+        <div class="sub" id="adviceText" style="margin-top:8px;line-height:1.55">-</div>
+      </div>
+    </div>
+
+    <div class="chartWrap">
+      <div class="chartTop">
+        <div class="label">กราฟย้อนหลัง 7 วัน (Average PM2.5 ต่อวัน) • สีตาม AQI เฉลี่ยรายวัน</div>
+      </div>
+      <canvas id="pm25Chart" height="120"></canvas>
+    </div>
+
+    <div class="footer">Tip: ถ้า history ยังไม่ครบ 7 วัน กราฟจะแสดงเท่าที่มี</div>
+  </div>
+
+  <!-- ✅ โหลด JS แยกไฟล์ (ต้องใส่ defer) -->
+  <script src="./app.js" defer></script>
+</body>
+</html>

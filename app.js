@@ -88,7 +88,7 @@ async function fetchJson(path){
 
 // =========================
 // PM2.5 -> AQI (fallback)
-/// =========================
+// =========================
 function pm25ToAqi(pm25){
   const c = Number(pm25);
   if (!Number.isFinite(c)) return null;
@@ -187,22 +187,17 @@ function dailyAverageFromHistory(historyObj){
 // =========================
 // Chart
 // =========================
-
 function updateChartTheme(){
   if(!window.chart) return;
-  
-
   window.chart.options.plugins.legend.labels.color = getCssVar("--text");
   window.chart.options.scales.x.ticks.color = getCssVar("--muted");
   window.chart.options.scales.y.ticks.color = getCssVar("--muted");
   window.chart.options.scales.y2.ticks.color = getCssVar("--muted");
-
   window.chart.update();
 }
 
-// ===== 1) Linear Regression Prediction (ง่าย + ดูเป็น AI) =====
+// ===== AI =====
 function linearRegressionPredictNext(y){
-  // x = 0..n-1
   const n = y.length;
   if(n < 2) return y[n-1] ?? 0;
 
@@ -217,18 +212,16 @@ function linearRegressionPredictNext(y){
   const m = (n*sumXY - sumX*sumY) / denom;
   const b = (sumY - m*sumX) / n;
 
-  const nextX = n; // พรุ่งนี้
+  const nextX = n;
   return m*nextX + b;
 }
 
-// ===== 2) RMSE แบบ backtest ง่ายๆ (ทดสอบพยากรณ์ทีละวัน) =====
 function backtestRMSE(y){
   const n = y.length;
   if(n < 4) return null;
 
   const preds = [];
   const trues = [];
-  // ทำนายวัน i จากข้อมูลก่อนหน้า [0..i-1]
   for(let i=2;i<n;i++){
     const hist = y.slice(0,i);
     const p = linearRegressionPredictNext(hist);
@@ -245,38 +238,32 @@ function backtestRMSE(y){
   return Math.sqrt(mse);
 }
 
-// ===== 3) Confidence (แปลงจาก RMSE ให้เป็นเปอร์เซ็นต์แบบเข้าใจง่าย) =====
 function rmseToConfidence(rmse, y){
   if(rmse == null) return null;
   const mean = y.reduce((a,b)=>a+b,0)/y.length;
-  // normalize ตามค่าเฉลี่ย (กันค่าหลุด)
   const ratio = rmse / Math.max(mean, 1);
   const conf = Math.max(0, Math.min(100, 100 * (1 - ratio)));
   return conf;
 }
 
-// ===== 4) Trend text =====
 function trendText(pred, last){
   const diff = pred - last;
   if(Math.abs(diff) < 1.0) return "แนวโน้มทรงตัว";
   return diff > 0 ? "แนวโน้มเพิ่มขึ้น" : "แนวโน้มลดลง";
 }
 
-// ===== 5) Health advice by AQI =====
 function aqiAdvice(aqi){
-  // ปรับได้ตามมาตรฐานที่อาจารย์ให้ใช้
-  if(aqi <= 50) return { cls:"advice-good", text:"🟢 Good: ออกกำลังกายกลางแจ้งได้ตามปกติ" };
+  if(aqi <= 50)  return { cls:"advice-good", text:"🟢 Good: ออกกำลังกายกลางแจ้งได้ตามปกติ" };
   if(aqi <= 100) return { cls:"advice-moderate", text:"🟡 Moderate: เด็ก/ผู้สูงอายุ/ผู้ป่วย ควรลดกิจกรรมกลางแจ้ง และสังเกตอาการ" };
   if(aqi <= 150) return { cls:"advice-unhealthy", text:"🔴 Unhealthy: ควรหลีกเลี่ยงกิจกรรมกลางแจ้ง ใส่หน้ากาก N95 หากจำเป็นต้องออกนอกบ้าน" };
   return { cls:"advice-unhealthy", text:"🔴 Very Unhealthy: ควรอยู่ในอาคาร ปิดช่องลม ใช้เครื่องฟอกอากาศถ้ามี และใส่ N95 เมื่อต้องออกไป" };
 }
 
-// ===== 6) Highlight PM2.5 vs WHO/Thai =====
 const WHO_24H = 15;
 const THAI_24H = 37;
 
 function applyPm25Highlight(pm25){
-  const el = document.getElementById("latestPm25"); // <- เปลี่ยนให้ตรง id ตัวเลข PM2.5 ของคุณ
+  const el = document.getElementById("latestPm25");
   if(!el) return;
 
   el.classList.remove("value-ok","value-who","value-thai");
@@ -284,6 +271,7 @@ function applyPm25Highlight(pm25){
   else if(pm25 >= WHO_24H) el.classList.add("value-who");
   else el.classList.add("value-ok");
 }
+
 function buildThresholdLineDataset(labels, value, label){
   return {
     type: "line",
@@ -292,38 +280,21 @@ function buildThresholdLineDataset(labels, value, label){
     borderWidth: 2,
     pointRadius: 0,
     borderDash: [6,6],
-    yAxisID: "y", // ให้ตรงกับแกน PM2.5 ของคุณ
+    yAxisID: "y",
     tension: 0
   };
 }
-options: {
-  plugins: {
-    tooltip: {
-      callbacks: {
-        label: (ctx) => {
-          const v = ctx.parsed.y;
-          const name = ctx.dataset.label || "";
-          if(name.includes("PM2.5")) return `${name}: ${v.toFixed(1)} µg/m³`;
-          if(name.includes("AQI")) return `${name}: ${Math.round(v)}`;
-          if(name.includes("WHO") || name.includes("TH")) return `${name}: ${v} µg/m³`;
-          return `${name}: ${v}`;
-        }
-      }
-    }
-  }
-}
+
 function updateAIAndAdvice(labels, pm25Series, aqiSeries){
   const lastPM = pm25Series[pm25Series.length-1] ?? 0;
   const lastAQI = aqiSeries[aqiSeries.length-1] ?? 0;
 
-  // Prediction
   const pred = linearRegressionPredictNext(pm25Series);
   const predClamped = Math.max(0, pred);
 
   const rmse = backtestRMSE(pm25Series);
   const conf = rmseToConfidence(rmse, pm25Series);
 
-  // UI update
   document.getElementById("ai_pred_pm25").textContent = `${predClamped.toFixed(1)} µg/m³`;
   document.getElementById("ai_pred_note").textContent =
     `AI คาดการณ์พรุ่งนี้: ${predClamped.toFixed(1)} µg/m³ (${trendText(predClamped, lastPM)})`;
@@ -331,18 +302,16 @@ function updateAIAndAdvice(labels, pm25Series, aqiSeries){
   document.getElementById("ai_rmse").textContent = rmse == null ? "--" : rmse.toFixed(2);
   document.getElementById("ai_conf").textContent = conf == null ? "--" : `${conf.toFixed(0)}%`;
 
-  // Health advice
   const adv = aqiAdvice(lastAQI);
   const advEl = document.getElementById("health_advice");
   advEl.className = adv.cls;
   advEl.textContent = adv.text;
 
-  // Highlight PM2.5 value card
   applyPm25Highlight(lastPM);
 }
 
 function drawDailyChart(series){
-  const labels = series.map(x => x.dayKey.slice(5)); // MM-DD
+  const labels = series.map(x => x.dayKey.slice(5));
   const pm25Vals = series.map(x => (Number.isFinite(x.avgPm25) ? Number(x.avgPm25.toFixed(1)) : null));
   const aqiVals  = series.map(x => (Number.isFinite(x.avgAqi)  ? Number(x.avgAqi.toFixed(0))  : null));
   const colors = series.map(x => aqiToCategory(x.avgAqi).color);
@@ -356,7 +325,6 @@ function drawDailyChart(series){
       { type:"line", label:"AQI (Avg/day)",  data: aqiVals,  yAxisID:"y2", tension:0.25, pointRadius:3, borderWidth:2,
         borderColor: getCssVar("--line") || "rgba(148,163,184,0.9)" },
 
-      // ✅ เส้น WHO / ไทย
       buildThresholdLineDataset(labels, WHO_24H, "WHO 24h (15)"),
       buildThresholdLineDataset(labels, THAI_24H, "TH Standard (37)")
     ]
@@ -367,7 +335,6 @@ function drawDailyChart(series){
     animation: false,
     plugins: {
       legend: { labels: { color: getCssVar("--text") } },
-      // ✅ Tooltip ที่ถูกที่
       tooltip: {
         callbacks: {
           label: (ctx) => {
@@ -389,14 +356,13 @@ function drawDailyChart(series){
   };
 
   if (!window.chart){
-    window.chart = new Chart(ctx, { data, options }); // ✅ ใส่ type ไม่จำเป็น เพราะ dataset ระบุ type แล้ว
+    window.chart = new Chart(ctx, { data, options });
   } else {
     window.chart.data = data;
     window.chart.options = options;
     window.chart.update("none");
   }
 }
-
 
 // =========================
 // UI update
@@ -437,7 +403,7 @@ async function loadProvince(pv){
     renderLatest(pv, latest || {});
     const series = dailyAverageFromHistory(history || {});
     drawDailyChart(series);
-    
+
     const pm25Series = series.map(x => (Number.isFinite(x.avgPm25) ? x.avgPm25 : null)).filter(v => v != null);
     const aqiSeries  = series.map(x => (Number.isFinite(x.avgAqi)  ? x.avgAqi  : null)).filter(v => v != null);
     updateAIAndAdvice(series.map(x=>x.dayKey), pm25Series, aqiSeries);
@@ -450,11 +416,45 @@ async function loadProvince(pv){
   }
 }
 
+// =========================
+// REALTIME PMS5003 (Firebase SDK)
+// =========================
+let realtimeUnsub = null;
+
+function listenRealtimePM25(){
+  if (!window.__fb) return;
+
+  if (realtimeUnsub){
+    realtimeUnsub();
+    realtimeUnsub = null;
+  }
+
+  const { db, ref, onValue } = window.__fb;
+
+  // ✅ ตรงกับ Arduino ที่ส่ง: /airpredict/pms5003/latest
+  const rtRef = ref(db, "airpredict/pms5003/latest");
+
+  realtimeUnsub = onValue(rtRef, (snap) => {
+    const v = snap.val();
+
+    if (!v){
+      $("rtPm25").textContent = "--";
+      $("rtTime").textContent = "อัปเดต: --";
+      return;
+    }
+
+    const pm25 = Number(v.pm25 ?? v.PM25 ?? v.pm2_5 ?? v.PM2_5);
+    $("rtPm25").textContent = Number.isFinite(pm25) ? pm25.toFixed(1) : "--";
+
+    const ts = v.ts ?? v.timestamp ?? Date.now();
+    const dt = new Date(ts);
+    $("rtTime").textContent = "อัปเดต: " + (isNaN(dt.getTime()) ? "--" : dt.toLocaleTimeString("th-TH"));
+  });
+}
+
 function init(){
-  // theme
   initTheme();
 
-  // provinces
   const provinceSelect = $("provinceSelect");
   PROVINCES.forEach(pv=>{
     const opt = document.createElement("option");
@@ -466,33 +466,47 @@ function init(){
   $("refreshBtn").addEventListener("click", () => loadProvince(provinceSelect.value));
 
   loadProvince(PROVINCES[0]);
+
+  // ถ้า Firebase มาก่อนแล้ว
+  if (window.__fb) listenRealtimePM25();
+
+  // ถ้า Firebase มาทีหลัง
+  window.addEventListener("firebase-ready", () => {
+    listenRealtimePM25();
+  });
 }
 
 document.addEventListener("DOMContentLoaded", init);
-async function fetchRealtimePM25(){
+
+// =========================
+// REALTIME PMS5003 (5 วินาที)
+// =========================
+async function fetchRealtimePMS5003(){
   try{
     const res = await fetch(
-      `${DATABASE_URL}/airpredict/realtime_pm2_5.json`
+      `${DATABASE_URL}/airpredict/pms5003/latest.json`,
+      { cache: "no-store" }
     );
-    const val = await res.json();
 
-    if(val === null){
-      document.getElementById("rtPm25").textContent = "--";
+    const v = await res.json();
+    if(!v){
+      $("rtPm25").textContent = "--";
+      $("rtTime").textContent = "อัปเดต: --";
       return;
     }
 
-    document.getElementById("rtPm25").textContent =
-      Number(val).toFixed(1);
+    const pm25 = Number(v.pm25);
+    $("rtPm25").textContent =
+      Number.isFinite(pm25) ? pm25.toFixed(1) : "--";
 
-    document.getElementById("rtTime").textContent =
+    $("rtTime").textContent =
       "อัปเดต: " + new Date().toLocaleTimeString("th-TH");
 
   }catch(err){
-    console.error("Realtime PM2.5 error", err);
+    console.error("Realtime PMS5003 error", err);
   }
 }
 
-// อัปเดตทุก 5 วินาที
-setInterval(fetchRealtimePM25, 5000);
-fetchRealtimePM25();
-
+// ⏱️ ดึงทุก 5 วินาที
+setInterval(fetchRealtimePMS5003, 5000);
+fetchRealtimePMS5003();

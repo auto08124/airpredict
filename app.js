@@ -88,7 +88,7 @@ async function fetchJson(path){
 
 // =========================
 // PM2.5 -> AQI (fallback)
-// =========================
+/// =========================
 function pm25ToAqi(pm25){
   const c = Number(pm25);
   if (!Number.isFinite(c)) return null;
@@ -189,14 +189,16 @@ function dailyAverageFromHistory(historyObj){
 // =========================
 function updateChartTheme(){
   if(!window.chart) return;
+
   window.chart.options.plugins.legend.labels.color = getCssVar("--text");
   window.chart.options.scales.x.ticks.color = getCssVar("--muted");
   window.chart.options.scales.y.ticks.color = getCssVar("--muted");
   window.chart.options.scales.y2.ticks.color = getCssVar("--muted");
+
   window.chart.update();
 }
 
-// ===== AI =====
+// ===== 1) Linear Regression Prediction (ง่าย + ดูเป็น AI) =====
 function linearRegressionPredictNext(y){
   const n = y.length;
   if(n < 2) return y[n-1] ?? 0;
@@ -216,6 +218,7 @@ function linearRegressionPredictNext(y){
   return m*nextX + b;
 }
 
+// ===== 2) RMSE แบบ backtest ง่ายๆ =====
 function backtestRMSE(y){
   const n = y.length;
   if(n < 4) return null;
@@ -238,6 +241,7 @@ function backtestRMSE(y){
   return Math.sqrt(mse);
 }
 
+// ===== 3) Confidence =====
 function rmseToConfidence(rmse, y){
   if(rmse == null) return null;
   const mean = y.reduce((a,b)=>a+b,0)/y.length;
@@ -246,19 +250,22 @@ function rmseToConfidence(rmse, y){
   return conf;
 }
 
+// ===== 4) Trend text =====
 function trendText(pred, last){
   const diff = pred - last;
   if(Math.abs(diff) < 1.0) return "แนวโน้มทรงตัว";
   return diff > 0 ? "แนวโน้มเพิ่มขึ้น" : "แนวโน้มลดลง";
 }
 
+// ===== 5) Health advice by AQI =====
 function aqiAdvice(aqi){
-  if(aqi <= 50)  return { cls:"advice-good", text:"🟢 Good: ออกกำลังกายกลางแจ้งได้ตามปกติ" };
+  if(aqi <= 50) return { cls:"advice-good", text:"🟢 Good: ออกกำลังกายกลางแจ้งได้ตามปกติ" };
   if(aqi <= 100) return { cls:"advice-moderate", text:"🟡 Moderate: เด็ก/ผู้สูงอายุ/ผู้ป่วย ควรลดกิจกรรมกลางแจ้ง และสังเกตอาการ" };
   if(aqi <= 150) return { cls:"advice-unhealthy", text:"🔴 Unhealthy: ควรหลีกเลี่ยงกิจกรรมกลางแจ้ง ใส่หน้ากาก N95 หากจำเป็นต้องออกนอกบ้าน" };
   return { cls:"advice-unhealthy", text:"🔴 Very Unhealthy: ควรอยู่ในอาคาร ปิดช่องลม ใช้เครื่องฟอกอากาศถ้ามี และใส่ N95 เมื่อต้องออกไป" };
 }
 
+// ===== 6) Highlight PM2.5 vs WHO/Thai =====
 const WHO_24H = 15;
 const THAI_24H = 37;
 
@@ -295,15 +302,15 @@ function updateAIAndAdvice(labels, pm25Series, aqiSeries){
   const rmse = backtestRMSE(pm25Series);
   const conf = rmseToConfidence(rmse, pm25Series);
 
-  document.getElementById("ai_pred_pm25").textContent = `${predClamped.toFixed(1)} µg/m³`;
-  document.getElementById("ai_pred_note").textContent =
+  $("ai_pred_pm25").textContent = `${predClamped.toFixed(1)} µg/m³`;
+  $("ai_pred_note").textContent =
     `AI คาดการณ์พรุ่งนี้: ${predClamped.toFixed(1)} µg/m³ (${trendText(predClamped, lastPM)})`;
 
-  document.getElementById("ai_rmse").textContent = rmse == null ? "--" : rmse.toFixed(2);
-  document.getElementById("ai_conf").textContent = conf == null ? "--" : `${conf.toFixed(0)}%`;
+  $("ai_rmse").textContent = rmse == null ? "--" : rmse.toFixed(2);
+  $("ai_conf").textContent = conf == null ? "--" : `${conf.toFixed(0)}%`;
 
   const adv = aqiAdvice(lastAQI);
-  const advEl = document.getElementById("health_advice");
+  const advEl = $("health_advice");
   advEl.className = adv.cls;
   advEl.textContent = adv.text;
 
@@ -311,7 +318,7 @@ function updateAIAndAdvice(labels, pm25Series, aqiSeries){
 }
 
 function drawDailyChart(series){
-  const labels = series.map(x => x.dayKey.slice(5));
+  const labels = series.map(x => x.dayKey.slice(5)); // MM-DD
   const pm25Vals = series.map(x => (Number.isFinite(x.avgPm25) ? Number(x.avgPm25.toFixed(1)) : null));
   const aqiVals  = series.map(x => (Number.isFinite(x.avgAqi)  ? Number(x.avgAqi.toFixed(0))  : null));
   const colors = series.map(x => aqiToCategory(x.avgAqi).color);
@@ -417,44 +424,82 @@ async function loadProvince(pv){
 }
 
 // =========================
-// REALTIME PMS5003 (Firebase SDK)
+// REALTIME PMS5003 (Firebase SDK) ✅ เพิ่มใหม่
 // =========================
-let realtimeUnsub = null;
+let lastRealtimeMs = 0;
+const OFFLINE_MS = 10000; // ถ้าไม่อัปเดตเกิน 15 วิ → ถือว่าไม่ได้ต่อบอร์ด
+let realtimeTimer = null;
 
-function listenRealtimePM25(){
-  if (!window.__fb) return;
+function showRealtimeBox(show){
+  const box = $("realtimeBox");
+  if (!box) return;
+  box.style.display = show ? "" : "none"; // "" = ใช้ค่าเดิมจาก CSS
+}
 
-  if (realtimeUnsub){
-    realtimeUnsub();
-    realtimeUnsub = null;
+function setRealtimeOffline(){
+  $("rtPm25").textContent = "--";
+  $("rtTime").textContent = "อัปเดต: --";
+  showRealtimeBox(false); // ✅ offline แล้วซ่อน
+}
+
+function listenRealtimePMS5003(){
+  // ต้องมี Firebase จาก index.html ก่อน
+  if (!window.__fb){
+    console.warn("Firebase not ready yet");
+    return;
   }
 
   const { db, ref, onValue } = window.__fb;
 
-  // ✅ ตรงกับ Arduino ที่ส่ง: /airpredict/pms5003/latest
+  // ✅ ดึง realtime จาก  Firebase
   const rtRef = ref(db, "airpredict/pms5003/latest");
 
-  realtimeUnsub = onValue(rtRef, (snap) => {
-    const v = snap.val();
+  // เริ่มต้นให้ซ่อนไว้ก่อน จนกว่าจะมีข้อมูล
+  setRealtimeOffline();
 
+  onValue(rtRef, (snap) => {
+    const v = snap.val();
     if (!v){
-      $("rtPm25").textContent = "--";
-      $("rtTime").textContent = "อัปเดต: --";
+      setRealtimeOffline();
       return;
     }
 
+    // รองรับหลายชื่อ field
     const pm25 = Number(v.pm25 ?? v.PM25 ?? v.pm2_5 ?? v.PM2_5);
-    $("rtPm25").textContent = Number.isFinite(pm25) ? pm25.toFixed(1) : "--";
 
-    const ts = v.ts ?? v.timestamp ?? Date.now();
-    const dt = new Date(ts);
-    $("rtTime").textContent = "อัปเดต: " + (isNaN(dt.getTime()) ? "--" : dt.toLocaleTimeString("th-TH"));
+    // ts จาก Arduino เป็น ISO string (เช่น 2025-12-27T16:20:10)
+    const tsRaw = v.ts ?? v.timestamp ?? null;
+    const tsMs = tsRaw ? new Date(tsRaw).getTime() : Date.now();
+
+    if (Number.isFinite(pm25)){
+      $("rtPm25").textContent = pm25.toFixed(1);
+      $("rtTime").textContent = "อัปเดต: " + new Date(tsMs).toLocaleTimeString("th-TH");
+      showRealtimeBox(true); // ✅ online แล้วแสดง
+      lastRealtimeMs = Date.now();
+    } else {
+      // ถ้า field ไม่ใช่ตัวเลขก็ถือว่า offline
+      setRealtimeOffline();
+    }
   });
+
+  // ✅ ตรวจ offline ทุก 5 วิ
+  if (realtimeTimer) clearInterval(realtimeTimer);
+  realtimeTimer = setInterval(() => {
+    if (!lastRealtimeMs) return;
+    if (Date.now() - lastRealtimeMs > OFFLINE_MS){
+      setRealtimeOffline();
+    }
+  }, 5000);
 }
 
+// =========================
+// init
+// =========================
 function init(){
+  // theme
   initTheme();
 
+  // provinces
   const provinceSelect = $("provinceSelect");
   PROVINCES.forEach(pv=>{
     const opt = document.createElement("option");
@@ -467,46 +512,15 @@ function init(){
 
   loadProvince(PROVINCES[0]);
 
-  // ถ้า Firebase มาก่อนแล้ว
-  if (window.__fb) listenRealtimePM25();
-
-  // ถ้า Firebase มาทีหลัง
+  // ✅ realtime ต้องรอ firebase-ready (มาจาก index.html)
   window.addEventListener("firebase-ready", () => {
-    listenRealtimePM25();
+    listenRealtimePMS5003();
   });
-}
 
-document.addEventListener("DOMContentLoaded", init);
-
-// =========================
-// REALTIME PMS5003 (5 วินาที)
-// =========================
-async function fetchRealtimePMS5003(){
-  try{
-    const res = await fetch(
-      `${DATABASE_URL}/airpredict/pms5003/latest.json`,
-      { cache: "no-store" }
-    );
-
-    const v = await res.json();
-    if(!v){
-      $("rtPm25").textContent = "--";
-      $("rtTime").textContent = "อัปเดต: --";
-      return;
-    }
-
-    const pm25 = Number(v.pm25);
-    $("rtPm25").textContent =
-      Number.isFinite(pm25) ? pm25.toFixed(1) : "--";
-
-    $("rtTime").textContent =
-      "อัปเดต: " + new Date().toLocaleTimeString("th-TH");
-
-  }catch(err){
-    console.error("Realtime PMS5003 error", err);
+  // เผื่อบางครั้ง firebase-ready มาก่อน DOM โหลด
+  if (window.__fb){
+    listenRealtimePMS5003();
   }
 }
 
-// ⏱️ ดึงทุก 5 วินาที
-setInterval(fetchRealtimePMS5003, 5000);
-fetchRealtimePMS5003();
+document.addEventListener("DOMContentLoaded", init);

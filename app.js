@@ -427,7 +427,7 @@ async function loadProvince(pv){
 // REALTIME PMS5003 (Firebase SDK) ✅ เพิ่มใหม่
 // =========================
 let lastRealtimeMs = 0;
-const OFFLINE_MS = 10000; // ถ้าไม่อัปเดตเกิน 15 วิ → ถือว่าไม่ได้ต่อบอร์ด
+const OFFLINE_MS = 8000; // ถ้าไม่อัปเดตเกิน 10 วิ → ถือว่าไม่ได้ต่อบอร์ด
 let realtimeTimer = null;
 
 function showRealtimeBox(show){
@@ -489,7 +489,7 @@ function listenRealtimePMS5003(){
     if (Date.now() - lastRealtimeMs > OFFLINE_MS){
       setRealtimeOffline();
     }
-  }, 5000);
+  }, 3000);
 }
 
 // =========================

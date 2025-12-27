@@ -58,7 +58,7 @@
         </div>
 
         <!-- เรียลไทม์ PMS5003 -->
-        <div class="realtimeBox" style="margin-top:14px">
+        <div class="realtimeBox" id="realtimeBox" style="margin-top:14px">
           <div class="realtimeTitle">📡 เรียลไทม์ PM2.5 (PMS5003)</div>
           <div class="realtimeValue">
             <span id="rtPm25">--</span>
@@ -104,8 +104,8 @@
 
   <!-- ✅ Firebase SDK (CDN) + Config -->
   <script type="module">
-     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
-     import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAAk3JQbgY9AnjUSOIQx94pjDa5JTgpv5o",
@@ -121,10 +121,10 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // ส่งให้ app.js ใช้
+    // ให้ app.js ใช้ได้ (เพราะ app.js ไม่ใช่ module)
     window.__fb = { db, ref, onValue };
 
-    // บอก app.js ว่า Firebase พร้อมแล้ว
+    // แจ้งว่า Firebase พร้อม
     window.dispatchEvent(new Event("firebase-ready"));
   </script>
 

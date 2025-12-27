@@ -31,23 +31,24 @@
         <button class="btn" id="refreshBtn" type="button">⟳ Refresh</button>
       </div>
     </div>
-<!-- AI Insight Card -->
-<div class="card">
-  <div class="card-title">🤖 AI Insight</div>
-  <div class="big" id="ai_pred_pm25">--</div>
-  <div class="muted" id="ai_pred_note">AI คาดการณ์พรุ่งนี้: -- (--) </div>
 
-  <div class="chips" style="margin-top:10px;">
-    <span class="chip">📏 RMSE: <b id="ai_rmse">--</b></span>
-    <span class="chip">✅ Confidence: <b id="ai_conf">--</b></span>
-  </div>
-</div>
+    <!-- AI Insight Card -->
+    <div class="card">
+      <div class="card-title">🤖 AI Insight</div>
+      <div class="big" id="ai_pred_pm25">--</div>
+      <div class="muted" id="ai_pred_note">AI คาดการณ์พรุ่งนี้: -- (--) </div>
 
-<!-- Health Advice Card -->
-<div class="card">
-  <div class="card-title">🏥 คำแนะนำสุขภาพตาม AQI</div>
-  <div class="muted" id="health_advice">--</div>
-</div>
+      <div class="chips" style="margin-top:10px;">
+        <span class="chip">📏 RMSE: <b id="ai_rmse">--</b></span>
+        <span class="chip">✅ Confidence: <b id="ai_conf">--</b></span>
+      </div>
+    </div>
+
+    <!-- Health Advice Card -->
+    <div class="card">
+      <div class="card-title">🏥 คำแนะนำสุขภาพตาม AQI</div>
+      <div class="muted" id="health_advice">--</div>
+    </div>
 
     <div class="grid">
       <div class="card">
@@ -55,15 +56,16 @@
         <div style="margin-top:10px">
           <select id="provinceSelect"></select>
         </div>
-          <!-- 🔴 เพิ่มตรงนี้ -->
-  <div class="realtimeBox" style="margin-top:14px">
-    <div class="realtimeTitle">📡 เรียลไทม์ PM2.5</div>
-    <div class="realtimeValue">
-      <span id="rtPm25">--</span>
-      <small>µg/m³</small>
-    </div>
-    <div class="realtimeTime" id="rtTime">อัปเดต: --</div>
-  </div>
+
+        <!-- เรียลไทม์ PMS5003 -->
+        <div class="realtimeBox" style="margin-top:14px">
+          <div class="realtimeTitle">📡 เรียลไทม์ PM2.5 (PMS5003)</div>
+          <div class="realtimeValue">
+            <span id="rtPm25">--</span>
+            <small>µg/m³</small>
+          </div>
+          <div class="realtimeTime" id="rtTime">อัปเดต: --</div>
+        </div>
 
         <div class="chips">
           <span class="chip">ช่วงข้อมูล: <b>7 วันล่าสุด</b></span>
@@ -100,7 +102,33 @@
     <div class="footer">Tip: ถ้า history ยังไม่ครบ 7 วัน กราฟจะแสดงเท่าที่มี</div>
   </div>
 
-  <!-- ✅ โหลด JS แยกไฟล์ (ต้องใส่ defer) -->
+  <!-- ✅ Firebase SDK (CDN) + Config -->
+  <script type="module">
+     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+     import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-analytics.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAAk3JQbgY9AnjUSOIQx94pjDa5JTgpv5o",
+      authDomain: "airpredict-ai.firebaseapp.com",
+      databaseURL: "https://airpredict-ai-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "airpredict-ai",
+      storageBucket: "airpredict-ai.firebasestorage.app",
+      messagingSenderId: "193432037602",
+      appId: "1:193432037602:web:32a4ae5aabaf9a261e96bb",
+      measurementId: "G-JJ95QX0ZP7"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // ส่งให้ app.js ใช้
+    window.__fb = { db, ref, onValue };
+
+    // บอก app.js ว่า Firebase พร้อมแล้ว
+    window.dispatchEvent(new Event("firebase-ready"));
+  </script>
+
+  <!-- ✅ โหลด JS แยกไฟล์ -->
   <script src="./app.js" defer></script>
 </body>
 </html>

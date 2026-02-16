@@ -3,10 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>AirPredict AI Dashboard (Firebase • 7 Days)</title>
+  <title>AirPredict AI Dashboard (Map + Forecast)</title>
 
   <link rel="stylesheet" href="./model.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
 <body>
@@ -14,7 +17,7 @@
     <div class="topbar">
       <div class="title">
         <h1>AirPredict AI — PM2.5 Dashboard</h1>
-        <div class="sub">แหล่งข้อมูล: Firebase Realtime Database • แสดงย้อนหลัง 7 วัน (ค่าเฉลี่ยรายวัน)</div>
+        <div class="sub">แหล่งข้อมูล: Firebase Realtime Database • แสดงย้อนหลัง 7 วัน + พยากรณ์</div>
       </div>
 
       <div class="actions">
@@ -32,7 +35,6 @@
       </div>
     </div>
 
-    <!-- AI Insight Card -->
     <div class="card">
       <div class="card-title">🤖 AI Insight</div>
       <div class="big" id="ai_pred_pm25">--</div>
@@ -44,10 +46,13 @@
       </div>
     </div>
 
-    <!-- Health Advice Card -->
     <div class="card">
       <div class="card-title">🏥 คำแนะนำสุขภาพตาม AQI</div>
       <div class="muted" id="health_advice">--</div>
+    </div>
+
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div id="map"></div>
     </div>
 
     <div class="grid">
@@ -57,7 +62,6 @@
           <select id="provinceSelect"></select>
         </div>
 
-        <!-- เรียลไทม์ PMS5003 -->
         <div class="realtimeBox" id="realtimeBox" style="margin-top:14px">
           <div class="realtimeTitle">📡 เรียลไทม์ PM2.5 (PMS5003)</div>
           <div class="realtimeValue">
@@ -94,15 +98,14 @@
 
     <div class="chartWrap">
       <div class="chartTop">
-        <div class="label">กราฟย้อนหลัง 7 วัน (Average PM2.5 ต่อวัน) • สีตาม AQI เฉลี่ยรายวัน</div>
+        <div class="label">กราฟย้อนหลัง 7 วัน + <span style="color:#FF5733; font-weight:bold;">พยากรณ์พรุ่งนี้ (AI)</span></div>
       </div>
       <canvas id="pm25Chart" height="120"></canvas>
     </div>
 
-    <div class="footer">Tip: ถ้า history ยังไม่ครบ 7 วัน กราฟจะแสดงเท่าที่มี</div>
+    <div class="footer">Tip: ข้อมูล AI Prediction จะถูกนำมาแสดงเปรียบเทียบในกราฟแท่งสุดท้าย</div>
   </div>
 
-  <!-- ✅ Firebase SDK (CDN) + Config -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
     import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
@@ -128,7 +131,6 @@
     window.dispatchEvent(new Event("firebase-ready"));
   </script>
 
-  <!-- ✅ โหลด JS แยกไฟล์ -->
   <script src="./app.js" defer></script>
 </body>
 </html>

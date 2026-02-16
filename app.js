@@ -46,6 +46,95 @@ function initTheme(){
 }
 
 // =========================
+// MAP LOGIC (Leaflet) ✅ ปรับปรุงใหม่: โชว์ตัวเลขบนหมุด
+// =========================
+let map, ksuMarker;
+
+// ฟังก์ชันช่วยเลือกสีตามค่า PM2.5
+function getPm25Color(pm25) {
+  const v = Number(pm25);
+  if (v <= 25) return "#4ade80"; // เขียว (ดีมาก)
+  if (v <= 37.5) return "#facc15"; // เหลือง (ปานกลาง)
+  if (v <= 75) return "#fb923c"; // ส้ม (เริ่มมีผล)
+  return "#f87171"; // แดง (มีผลกระทบ)
+}
+
+// ฟังก์ชันสร้าง Icon ที่เป็นตัวเลข
+function createPm25Icon(pm25) {
+  const val = Number(pm25).toFixed(1); // ทศนิยม 1 ตำแหน่ง
+  const color = getPm25Color(pm25);
+  
+  return L.divIcon({
+    className: 'pm25-marker-wrap', // คลาสหลักของ Leaflet wrapper
+    html: `<div class="pm25-pin" style="background-color: ${color};">${val}</div>`,
+    iconSize: [40, 40], // ขนาดวงกลม
+    iconAnchor: [20, 20], // จุดกึ่งกลาง (ครึ่งหนึ่งของ size)
+    popupAnchor: [0, -20]
+  });
+}
+
+function initMap() {
+  if (!$("map")) return; 
+
+  // เซ็ตพิกัดกลาง (เน้นโซนอีสานกลาง)
+  map = L.map('map').setView([16.30, 103.30], 9);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  // ปักหมุด 4 จังหวัด (Static) พร้อมใส่ค่าสมมติ (หรือจะดึงจริงก็ได้ในอนาคต)
+  // เพื่อให้เห็นภาพเหมือนรูปตัวอย่าง ผมใส่ค่า value จำลองไว้ครับ
+  const locations = [
+      { name: "ขอนแก่น", lat: 16.4329, lng: 102.8236, value: 52.8 },
+      { name: "มหาสารคาม", lat: 16.1868, lng: 103.2995, value: 45.0 },
+      { name: "ร้อยเอ็ด", lat: 16.0538, lng: 103.6520, value: 33.0 },
+      { name: "กาฬสินธุ์", lat: 16.4322, lng: 103.5061, value: 47.0 }
+  ];
+
+  locations.forEach(loc => {
+      L.marker([loc.lat, loc.lng], {
+        icon: createPm25Icon(loc.value) // ✅ ใช้ไอคอนแบบตัวเลข
+      })
+       .addTo(map)
+       .bindPopup(`<b>${loc.name}</b><br>PM2.5: ${loc.value} µg/m³`);
+  });
+
+  // หมุดพิเศษ: ม.กาฬสินธุ์ (รอรับค่า Realtime)
+  // เริ่มต้นให้แสดงเป็น "--" ก่อน
+  ksuMarker = L.marker([16.4419, 103.5126], {
+      icon: L.divIcon({
+          className: 'pm25-marker-wrap',
+          html: `<div class="pm25-pin" style="background-color: #cbd5e1;">--</div>`,
+          iconSize: [40, 40],
+          iconAnchor: [20, 20]
+      })
+  }).addTo(map).bindPopup("<b>มหาวิทยาลัยกาฬสินธุ์</b><br>รอข้อมูล...");
+}
+
+// ฟังก์ชันอัปเดต Popup และไอคอน ในแผนที่เมื่อค่า Realtime เปลี่ยน
+function updateMapMarker(pm25) {
+  if (!ksuMarker) return;
+  const val = Number(pm25);
+  
+  // ✅ เปลี่ยนไอคอนเป็นตัวเลขตามค่าจริง
+  ksuMarker.setIcon(createPm25Icon(val));
+
+  // อัปเดต Popup ข้อความ
+  let status = "อากาศดี";
+  if(val > 37) status = "เริ่มมีผลกระทบ";
+  if(val > 50) status = "อันตราย";
+  
+  ksuMarker.setPopupContent(`
+    <div style="text-align:center; min-width:100px;">
+      <b style="color:#d35400">ม.กาฬสินธุ์ (Realtime)</b><br>
+      <span style="font-size:16px; font-weight:bold;">${val.toFixed(1)} µg/m³</span><br>
+      <small>${status}</small>
+    </div>
+  `);
+}
+
+// =========================
 // AQI Helpers
 // =========================
 function aqiToCategory(aqi){
@@ -88,7 +177,7 @@ async function fetchJson(path){
 
 // =========================
 // PM2.5 -> AQI (fallback)
-/// =========================
+// =========================
 function pm25ToAqi(pm25){
   const c = Number(pm25);
   if (!Number.isFinite(c)) return null;
@@ -317,11 +406,23 @@ function updateAIAndAdvice(labels, pm25Series, aqiSeries){
   applyPm25Highlight(lastPM);
 }
 
-function drawDailyChart(series){
+// ✅ แก้ไข: เพิ่ม parameter predictedValue เพื่อรับค่าพยากรณ์มาวาดกราฟ
+function drawDailyChart(series, predictedValue = null){
+  // เตรียมข้อมูลชุดเดิม
   const labels = series.map(x => x.dayKey.slice(5)); // MM-DD
   const pm25Vals = series.map(x => (Number.isFinite(x.avgPm25) ? Number(x.avgPm25.toFixed(1)) : null));
   const aqiVals  = series.map(x => (Number.isFinite(x.avgAqi)  ? Number(x.avgAqi.toFixed(0))  : null));
   const colors = series.map(x => aqiToCategory(x.avgAqi).color);
+
+  // ✅ ส่วนเสริม: ถ้ามีค่าพยากรณ์ ให้เพิ่มแท่ง "พรุ่งนี้" เข้าไป
+  if (predictedValue !== null && predictedValue !== undefined) {
+      labels.push("พรุ่งนี้ (AI)");
+      pm25Vals.push(Number(predictedValue.toFixed(1)));
+      // AQI พยากรณ์ (แปลงคร่าวๆ) หรือจะใส่ null ก็ได้
+      aqiVals.push(null); 
+      // สีส้มแดง เด่นๆ
+      colors.push("#FF5733");
+  }
 
   const ctx = $("pm25Chart").getContext("2d");
 
@@ -347,6 +448,9 @@ function drawDailyChart(series){
           label: (ctx) => {
             const v = ctx.parsed.y;
             const name = ctx.dataset.label || "";
+            // ถ้าเป็นแท่ง AI
+            if(ctx.label.includes("AI") && name.includes("PM2.5")) return `🤖 AI Predicted: ${v} µg/m³`;
+            
             if(name.includes("PM2.5")) return `${name}: ${v?.toFixed?.(1) ?? v} µg/m³`;
             if(name.includes("AQI"))   return `${name}: ${Math.round(v)}`;
             if(name.includes("WHO") || name.includes("TH")) return `${name}: ${v} µg/m³`;
@@ -409,10 +513,21 @@ async function loadProvince(pv){
 
     renderLatest(pv, latest || {});
     const series = dailyAverageFromHistory(history || {});
-    drawDailyChart(series);
 
+    // ดึงข้อมูลสำหรับคำนวณ AI
     const pm25Series = series.map(x => (Number.isFinite(x.avgPm25) ? x.avgPm25 : null)).filter(v => v != null);
     const aqiSeries  = series.map(x => (Number.isFinite(x.avgAqi)  ? x.avgAqi  : null)).filter(v => v != null);
+    
+    // คำนวณค่าพยากรณ์ (Predict) เพื่อส่งไปให้กราฟวาด
+    let predictedVal = null;
+    if(pm25Series.length >= 2){
+        predictedVal = Math.max(0, linearRegressionPredictNext(pm25Series));
+    }
+
+    // ✅ ส่ง predictedVal ไปที่กราฟด้วย
+    drawDailyChart(series, predictedVal);
+    
+    // อัปเดต Text ข้อมูล AI
     updateAIAndAdvice(series.map(x=>x.dayKey), pm25Series, aqiSeries);
 
     setLastUpdate("โหลดล่าสุด: " + new Date().toLocaleTimeString());
@@ -427,7 +542,7 @@ async function loadProvince(pv){
 // REALTIME PMS5003 (Firebase SDK) ✅ เพิ่มใหม่
 // =========================
 let lastRealtimeMs = 0;
-const OFFLINE_MS = 8000; // ถ้าไม่อัปเดตเกิน 10 วิ → ถือว่าไม่ได้ต่อบอร์ด
+const OFFLINE_MS = 10000; // ถ้าไม่อัปเดตเกิน 10 วิ → ถือว่าไม่ได้ต่อบอร์ด
 let realtimeTimer = null;
 
 function showRealtimeBox(show){
@@ -476,6 +591,10 @@ function listenRealtimePMS5003(){
       $("rtTime").textContent = "อัปเดต: " + new Date(tsMs).toLocaleTimeString("th-TH");
       showRealtimeBox(true); // ✅ online แล้วแสดง
       lastRealtimeMs = Date.now();
+
+      // ✅ [เพิ่ม] อัปเดต Marker ในแผนที่ด้วย
+      updateMapMarker(pm25);
+
     } else {
       // ถ้า field ไม่ใช่ตัวเลขก็ถือว่า offline
       setRealtimeOffline();
@@ -489,7 +608,7 @@ function listenRealtimePMS5003(){
     if (Date.now() - lastRealtimeMs > OFFLINE_MS){
       setRealtimeOffline();
     }
-  }, 3000);
+  }, 5000);
 }
 
 // =========================
@@ -498,6 +617,9 @@ function listenRealtimePMS5003(){
 function init(){
   // theme
   initTheme();
+  
+  // ✅ เริ่มต้นแผนที่
+  initMap();
 
   // provinces
   const provinceSelect = $("provinceSelect");

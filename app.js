@@ -592,7 +592,7 @@ function listenRealtimePMS5003(){
       showRealtimeBox(true); // ✅ online แล้วแสดง
       lastRealtimeMs = Date.now();
 
-      // ✅ [เพิ่ม] อัปเดต Marker ในแผนที่ด้วย
+      // ✅ [ เพิ่ม ] อัปเดต Marker ในแผนที่ด้วย
       updateMapMarker(pm25);
 
     } else {

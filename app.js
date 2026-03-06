@@ -127,7 +127,7 @@ function updateMapMarker(pm25) {
   
   ksuMarker.setPopupContent(`
     <div style="text-align:center; min-width:100px;">
-      <b style="color:#d35400">ม.กาฬสินdsasd (Realtime)</b><br>
+      <b style="color:#d35400">ม.กาฬสินธ์ุ สาขาวิศวกรรมคอมพิวเตอร์และระบบอัตโนมัติ (Realtime)</b><br>
       <span style="font-size:16px; font-weight:bold;">${val.toFixed(1)} µg/m³</span><br>
       <small>${status}</small>
     </div>

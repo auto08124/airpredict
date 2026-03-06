@@ -56,7 +56,7 @@ function getPm25Color(pm25) {
   if (v <= 25) return "#4ade80"; // เขียว (ดีมาก)
   if (v <= 37.5) return "#facc15"; // เหลือง (ปานกลาง)
   if (v <= 75) return "#fb923c"; // ส้ม (เริ่มมีผล)
-  return "#f87171"; // แดง (มีผลกระทบ)
+  return "#f04646"; // แดง (มีผลกระทบ)
 }
 
 // ฟังก์ชันสร้าง Icon ที่เป็นตัวเลข
@@ -127,7 +127,7 @@ function updateMapMarker(pm25) {
   
   ksuMarker.setPopupContent(`
     <div style="text-align:center; min-width:100px;">
-      <b style="color:#d35400">ม.กาฬสินธ์ุ สาขาวิศวกรรมคอมพิวเตอร์และระบบอัตโนมัติ (Realtime)</b><br>
+      <b style="color:#d35400">ม.กาฬสินdsasd (Realtime)</b><br>
       <span style="font-size:16px; font-weight:bold;">${val.toFixed(1)} µg/m³</span><br>
       <small>${status}</small>
     </div>
@@ -592,7 +592,7 @@ function listenRealtimePMS5003(){
       showRealtimeBox(true); // ✅ online แล้วแสดง
       lastRealtimeMs = Date.now();
 
-      // ✅ [ เพิ่ม ] อัปเดต Marker ในแผนที่ด้วย
+      // ✅ [เพิ่ม] อัปเดต Marker ในแผนที่ด้วย
       updateMapMarker(pm25);
 
     } else {

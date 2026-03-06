@@ -102,7 +102,7 @@ function initMap() {
 
   // หมุดพิเศษ: ม.กาฬสินธุ์ (รอรับค่า Realtime)
   // เริ่มต้นให้แสดงเป็น "--" ก่อน
-  ksuMarker = L.marker([16.4419, 103.5126], {
+  ksuMarker = L.marker([16.447945824373246, 103.53069816947362], {
       icon: L.divIcon({
           className: 'pm25-marker-wrap',
           html: `<div class="pm25-pin" style="background-color: #cbd5e1;">--</div>`,
@@ -127,7 +127,7 @@ function updateMapMarker(pm25) {
   
   ksuMarker.setPopupContent(`
     <div style="text-align:center; min-width:100px;">
-      <b style="color:#d35400">ม.กาฬสินธุ์ (Realtime)</b><br>
+      <b style="color:#d35400">มหาวิทยาลัยกาฬสินธ์ุ สาขาวิศวกรรมคอมพิวเตอร์และระบบอัตโนมัติ (Realtime)</b><br>
       <span style="font-size:16px; font-weight:bold;">${val.toFixed(1)} µg/m³</span><br>
       <small>${status}</small>
     </div>
